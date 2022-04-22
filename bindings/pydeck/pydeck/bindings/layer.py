@@ -1,6 +1,7 @@
 import uuid
 
 import numpy as np
+import pandas as pd
 
 from ..data_utils import is_pandas_df, has_geo_interface, records_from_geo_interface
 from .json_tools import JSONMixin, camel_and_lower
@@ -150,7 +151,16 @@ class Layer(JSONMixin):
         # Loop through data columns and convert them to numpy arrays
         for column in data_set.columns:
             # np.stack will take data arrays and conveniently extract the shape
-            np_data = np.stack(data_set[column].to_numpy())
+            if data_set[column].apply(pd.api.types.is_list_like).all():
+                start_indices = data_set[column].str.len().cumsum().shift(1, fill_value=0).values
+                length = len(data_set[column])
+                size = np.asarray(data_set[column].iloc[0]).shape[-1]
+                np_data = np.concatenate(data_set[column].to_numpy(),axis=None)
+            else:
+                start_indices = None
+                length = len(data_set[column])
+                size = 1
+                np_data = np.stack(data_set[column].to_numpy())
             # Get rid of the accessor so it doesn't appear in the JSON output
             del self.__dict__[inverted_accessor_map[column]]
             binary_transmission.append(
@@ -159,6 +169,10 @@ class Layer(JSONMixin):
                     "column_name": column,
                     "accessor": camel_and_lower(inverted_accessor_map[column]),
                     "np_data": np_data,
+                    # added to support other data shapes (e.g. for Path, SolidPolygon)
+                    "start_indices": start_indices,
+                    "length": length,
+                    "size": size,
                 }
             )
         return binary_transmission
