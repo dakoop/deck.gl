@@ -24,10 +24,10 @@ def array_to_binary(ar, obj=None, force_contiguous=True):
         "value": memoryview(ar),
         # dtype convertible to a typed array
         "dtype": str(ar.dtype),
-        # height of np matrix
-        "length": ar.shape[0],
-        # width of np matrix
-        "size": 1 if len(ar.shape) == 1 else ar.shape[1],
+        # # height of np matrix
+        # "length": ar.shape[0],
+        # # width of np matrix
+        # "size": 1 if len(ar.shape) == 1 else ar.shape[1],
     }
 
 
@@ -37,12 +37,13 @@ def serialize_columns(data_set_cols, obj=None):
     layers = defaultdict(dict)
     # Number of records in data set
     length = {}
+    start_indices = {}
     for col in data_set_cols:
         accessor_attribute = array_to_binary(col["np_data"])
-        if length.get(col["layer_id"]):
-            length[col["layer_id"]] = max(length[col["layer_id"]], accessor_attribute["length"])
-        else:
-            length[col["layer_id"]] = accessor_attribute["length"]
+        length[col["layer_id"]] = max(length.get(col["layer_id"],0), col["length"]) # accessor_attribute["length"])
+        # FIXME check they are the same?
+        start_indices[col["layer_id"]] = max(start_indices.get(col["layer_id"],[]), col["start_indices"], key=len)
+
         # attributes is deck.gl's expected argument name for
         # binary data transfer
         if not layers[col["layer_id"]].get("attributes"):
@@ -51,10 +52,11 @@ def serialize_columns(data_set_cols, obj=None):
         layers[col["layer_id"]]["attributes"][col["accessor"]] = {
             "value": accessor_attribute["value"],
             "dtype": accessor_attribute["dtype"],
-            "size": accessor_attribute["size"],
+            "size": col["size"], # accessor_attribute["size"],
         }
     for layer_key, _ in layers.items():
         layers[layer_key]["length"] = length[layer_key]
+        layers[layer_key]["startIndices"] = start_indices[layer_key]
     return layers
 
 
