@@ -152,6 +152,9 @@ class Layer(JSONMixin):
         unconverted_cols = []
         # Loop through data columns and convert them to numpy arrays
         for column in data_set.columns:
+            if column not in inverted_accessor_map:
+                unconverted_cols.append(column)
+                continue
             # np.stack will take data arrays and conveniently extract the shape
             if data_set[column].apply(pd.api.types.is_list_like).all():
                 start_indices = data_set[column].str.len().cumsum().shift(1, fill_value=0).values
@@ -164,8 +167,7 @@ class Layer(JSONMixin):
                 size = 1
                 np_data = np.stack(data_set[column].to_numpy())
             if np_data.dtype.kind not in ["u", "i", "f"]:  # ints and floats
-                unconverted_cols.append(column)
-                continue
+                raise BinaryTransportException('Cannot pass non-numeric columns "{column}" via binary transfer')
             # Get rid of the accessor so it doesn't appear in the JSON output
             del self.__dict__[inverted_accessor_map[column]]
             binary_transmission.append(
