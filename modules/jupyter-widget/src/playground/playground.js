@@ -76,7 +76,8 @@ export function processDataBuffer({binary, convertedJson}) {
     const layerId = convertedJson.layers[i].id;
     const layer = convertedJson.layers[i];
     // Replace data on every layer prop
-    convertedJson.layers[i] = layer.clone({data: binary[layerId]});
+    // Move any JSON data to otherData (used in tooltip)
+    convertedJson.layers[i] = layer.clone({data: binary[layerId], otherData: layer.props.data});
   }
   return convertedJson;
 }
