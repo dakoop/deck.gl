@@ -1,5 +1,7 @@
 /* global document */
 let lastPickedObject;
+let lastPickedObjectLayerId;
+let lastPickedObjectIndex;
 let lastTooltip;
 
 const DEFAULT_STYLE = {
@@ -19,15 +21,27 @@ export function getTooltipDefault(pickedInfo) {
   if (!pickedInfo.picked) {
     return null;
   }
-  if (pickedInfo.object === lastPickedObject) {
-    return lastTooltip;
+  let objectData;
+  if (pickedInfo.object) {
+    if (pickedInfo.object === lastPickedObject) {
+      return lastTooltip;
+    }
+    objectData = pickedInfo.object;
+    lastPickedObject = pickedInfo.object;
+  } else {
+    // use approach from https://github.com/visgl/deck.gl/issues/4418#issuecomment-603617867
+    if (pickedInfo.layer.id === lastPickedObjectLayerId && pickedInfo.index === lastPickedObjectIndex) {
+      return lastTooltip;
+    }
+    objectData = pickedInfo.layer.props.otherData[pickedInfo.index];
+    lastPickedObjectLayerId = pickedInfo.layer.id;
+    lastPickedObjectIndex = pickedInfo.index;
   }
   const tooltip = {
-    html: tabularize(pickedInfo.object),
+    html: tabularize(objectData),
     style: DEFAULT_STYLE
   };
   lastTooltip = tooltip;
-  lastPickedObject = pickedInfo.object;
   return tooltip;
 }
 
@@ -140,10 +154,17 @@ export default function makeTooltip(tooltip) {
         style: tooltip.style || DEFAULT_STYLE
       };
 
-      if (tooltip.html) {
-        formattedTooltip.html = substituteIn(tooltip.html, pickedInfo.object);
+      let objectData;
+      if (pickedInfo.object) {
+        objectData = pickedInfo.object;
       } else {
-        formattedTooltip.text = substituteIn(tooltip.text, pickedInfo.object);
+        objectData = pickedInfo.layer.props.otherData[pickedInfo.index];
+      }
+
+      if (tooltip.html) {
+        formattedTooltip.html = substituteIn(tooltip.html, objectData);
+      } else {
+        formattedTooltip.text = substituteIn(tooltip.text, objectData);
       }
 
       return formattedTooltip;

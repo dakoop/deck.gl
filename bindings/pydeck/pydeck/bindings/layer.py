@@ -125,7 +125,8 @@ class Layer(JSONMixin):
         serializing the data to JSON
         """
         if self.use_binary_transport:
-            self._binary_data = self._prepare_binary_data(data_set)
+            self._binary_data, unconverted_cols = self._prepare_binary_data(data_set)
+            self._data = data_set[unconverted_cols].to_dict(orient="records")
         elif is_pandas_df(data_set):
             self._data = data_set.to_dict(orient="records")
         elif has_geo_interface(data_set):
@@ -148,6 +149,7 @@ class Layer(JSONMixin):
         inverted_accessor_map = {v: k for k, v in layer_accessors.items() if type(v) not in [list, dict, set]}
 
         binary_transmission = []
+        unconverted_cols = []
         # Loop through data columns and convert them to numpy arrays
         for column in data_set.columns:
             # np.stack will take data arrays and conveniently extract the shape
@@ -161,6 +163,9 @@ class Layer(JSONMixin):
                 length = len(data_set[column])
                 size = 1
                 np_data = np.stack(data_set[column].to_numpy())
+            if np_data.dtype.kind not in ["u", "i", "f"]:  # ints and floats
+                unconverted_cols.append(column)
+                continue
             # Get rid of the accessor so it doesn't appear in the JSON output
             del self.__dict__[inverted_accessor_map[column]]
             binary_transmission.append(
@@ -175,7 +180,7 @@ class Layer(JSONMixin):
                     "size": size,
                 }
             )
-        return binary_transmission
+        return binary_transmission, unconverted_cols
 
     @property
     def type(self):
